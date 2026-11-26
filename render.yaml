@@ -1,0 +1,32 @@
+# Blueprint do Render (https://render.com) para publicar a API + painel com uma URL pública.
+# No painel do Render: New > Blueprint > escolher este repositório. Depois do primeiro deploy,
+# copie em Environment os valores gerados de GSA_CHAVE_API_DETECCAO e GSA_SEED_SENHA_ADMIN
+# (usados pelo roteiro scripts/demo_pitch.py e pelo contador YOLO).
+# Confira no site do Render as condições atuais dos planos gratuitos antes de usar.
+services:
+  - type: web
+    name: gsa-api
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: GSA_DATABASE_URL
+        fromDatabase:
+          name: gsa-db
+          property: connectionString
+      - key: GSA_JWT_SEGREDO
+        generateValue: true
+      - key: GSA_CHAVE_API_DETECCAO
+        generateValue: true
+      - key: GSA_SEED_AO_INICIAR
+        value: "1"
+      - key: GSA_SEED_SENHA_ADMIN
+        generateValue: true
+      - key: GSA_SEED_SENHA_OPERADOR
+        generateValue: true
+
+databases:
+  - name: gsa-db
+    plan: free
+    databaseName: gsa
+    user: gsa

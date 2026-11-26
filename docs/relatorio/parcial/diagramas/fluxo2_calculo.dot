@@ -1,0 +1,58 @@
+// Fluxo 2 — cálculo do ciclo semafórico
+// Gerar imagem: dot -Tpng -Gdpi=200 ARQUIVO.dot -o ../img/ARQUIVO.png
+digraph GSA {
+  graph [rankdir=TB, fontname="DejaVu Sans", fontsize=13, nodesep=0.22, ranksep=0.28,
+         bgcolor="white", pad=0.3, newrank=true, compound=true];
+  node  [fontname="DejaVu Sans", fontsize=11, style="filled", color="#37474F", penwidth=1.2,
+         margin="0.14,0.06"];
+  edge  [fontname="DejaVu Sans", fontsize=10, color="#37474F", arrowsize=0.8, penwidth=1.1];
+
+  // ---------- Legenda ----------
+  subgraph cluster_legenda {
+    label=<<b>Legenda</b>>; labeljust=l; style="rounded"; color="#B0BEC5"; fontsize=12; margin=6;
+    l1 [fontsize=10, label="Início / fim", shape=ellipse, fillcolor="#C8E6C9"];
+    l2 [fontsize=10, label="Processo", shape=box, fillcolor="#E3F2FD"];
+    l3 [fontsize=10, label="Motor de cálculo", shape=box, fillcolor="#D1C4E9"];
+    l4 [fontsize=10, label="Decisão", shape=diamond, fillcolor="#FFE0B2"];
+    l5 [fontsize=10, label="Banco de dados", shape=cylinder, fillcolor="#ECEFF1"];
+    l6 [fontsize=10, label="Erro (resposta)", shape=box, style="rounded,filled", fillcolor="#FFCDD2"];
+    l7 [fontsize=10, label="Próxima fase", shape=box, style="dashed,rounded", color="#78909C", fontcolor="#546E7A", fillcolor="white"];
+    l1 -> l2 -> l3 -> l4 -> l5 -> l6 -> l7 [style=invis];
+  }
+
+  // ---------- Fluxo 2: cálculo do ciclo ----------
+  subgraph cluster_calculo {
+    label=<<b>Fluxo 2 — Cálculo do ciclo semafórico (RF06–RF11)</b>>; labeljust=l;
+    style="rounded"; color="#B0BEC5"; fontsize=12; margin=6;
+
+    i2  [label="Operador solicita\no cálculo", shape=ellipse, fillcolor="#C8E6C9"];
+    r2  [label="POST /cruzamentos/{id}/\ncalcular-ciclo\nRota / Controller (FastAPI)", shape=box, fillcolor="#E3F2FD"];
+    s2  [label="Service busca a última leitura\ne o semáforo de cada via", shape=box, fillcolor="#E3F2FD"];
+    db2 [label="Banco de dados\nvias · semáforos\nleituras", shape=cylinder, fillcolor="#ECEFF1"];
+    d4  [label="Há vias com\nsemáforo ativo?", shape=diamond, fillcolor="#FFE0B2"];
+    m1  [label="Motor: demanda de cada via\nveículos ÷ total (RF06)", shape=box, fillcolor="#D1C4E9"];
+    m2  [label="Motor: classifica o fluxo\nbaixo · moderado · alto · crítico\n(RF07)", shape=box, fillcolor="#D1C4E9"];
+    m3  [label="Motor: distribui o verde\ndisponível proporcionalmente\n(RF08/RF09)", shape=box, fillcolor="#D1C4E9"];
+    d5  [label="Alguma via fora\ndo mínimo/máximo?", shape=diamond, fillcolor="#FFE0B2"];
+    m4  [label="Trava a via no mínimo (RF10)\nou no máximo (RF11)", shape=box, fillcolor="#D1C4E9"];
+    f2  [label="Resposta 200 JSON\ntempos de verde,\namarelo e vermelho", shape=ellipse, fillcolor="#C8E6C9"];
+    e3  [label="Erro 400\nsem vias calculáveis", shape=box, style="rounded,filled", fillcolor="#FFCDD2"];
+    p6  [label="Próxima fase: gravar ciclo\ne histórico (RF12/RF13)", shape=box, style="dashed,rounded", color="#78909C", fontcolor="#546E7A", fillcolor="white"];
+
+    i2 -> r2 -> s2;
+    s2 -> db2 [dir=both, arrowtail=none, style=solid];
+    s2 -> d4;
+    d4 -> m1 [label=" Sim"];
+    d4 -> e3 [label=" Não"];
+    m1 -> m2 -> m3 -> d5;
+    d5 -> m4 [label=" Sim"];
+    m4 -> m3 [constraint=false, label=" redistribui\n o restante", tailport=n, headport=e];
+    d5 -> f2 [label=" Não"];
+    f2 -> p6 [style=dashed, color="#78909C"];
+    {rank=same; s2; db2}
+    {rank=same; d4; e3}
+    {rank=same; d5; m4}
+  }
+
+  {rank=same; l1; i2}
+}

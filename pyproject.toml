@@ -1,0 +1,24 @@
+[project]
+name = "gestao-semaforica-adaptativa"
+version = "1.2.0"
+description = "Backend para cálculo automático da temporização de semáforos com base no volume de tráfego."
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# FastAPI usa chamadas em valores padrão (Depends, Query) por design
+"app/api/**" = ["B008"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "simulacao", "deteccao"]
+known-third-party = ["alembic"]

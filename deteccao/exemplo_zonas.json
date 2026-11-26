@@ -1,0 +1,17 @@
+{
+  "cruzamentoId": 1,
+  "janelaSegundos": 10,
+  "classes": ["car", "motorcycle", "bus", "truck"],
+  "zonas": [
+    {
+      "viaId": 1,
+      "nome": "Via A — Avenida Principal",
+      "poligono": [[0.0, 0.0], [0.5, 0.0], [0.5, 1.0], [0.0, 1.0]]
+    },
+    {
+      "viaId": 2,
+      "nome": "Via B — Rua Secundária",
+      "poligono": [[0.5, 0.0], [1.0, 0.0], [1.0, 1.0], [0.5, 1.0]]
+    }
+  ]
+}

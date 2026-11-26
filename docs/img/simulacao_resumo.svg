@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="314" viewBox="0 0 760 314" font-family="DejaVu Sans, Arial, sans-serif">
+<rect width="760" height="330" fill="#ffffff"/>
+<text x="16.0" y="24.0" font-size="15" fill="#0b0b0b" text-anchor="start" font-weight="bold">Espera média por veículo no dia (06h–22h)</text>
+<text x="16.0" y="64.0" font-size="12" fill="#0b0b0b" text-anchor="start" font-weight="bold">Demanda moderada</text>
+<text x="240.0" y="84.0" font-size="11" fill="#52514e" text-anchor="end" font-weight="normal">Tempo fixo — divisão igual (90 s)</text>
+<rect x="250" y="72" width="20.0" height="16" rx="3" fill="#eb6834"/>
+<text x="276.0" y="84.0" font-size="11" fill="#0b0b0b" text-anchor="start" font-weight="normal">18.2 s</text>
+<text x="240.0" y="106.0" font-size="11" fill="#52514e" text-anchor="end" font-weight="normal">Tempo fixo — ajustado à média do dia</text>
+<rect x="250" y="94" width="13.4" height="16" rx="3" fill="#6b6a65"/>
+<text x="269.4" y="106.0" font-size="11" fill="#0b0b0b" text-anchor="start" font-weight="normal">12.2 s</text>
+<text x="240.0" y="128.0" font-size="11" fill="#52514e" text-anchor="end" font-weight="normal">Adaptativo — proporcional</text>
+<rect x="250" y="116" width="15.0" height="16" rx="3" fill="#1baf7a"/>
+<text x="271.0" y="128.0" font-size="11" fill="#0b0b0b" text-anchor="start" font-weight="normal">13.6 s</text>
+<text x="240.0" y="150.0" font-size="11" fill="#52514e" text-anchor="end" font-weight="normal">Adaptativo — Webster</text>
+<rect x="250" y="138" width="12.3" height="16" rx="3" fill="#2a78d6"/>
+<text x="268.3" y="150.0" font-size="11" fill="#0b0b0b" text-anchor="start" font-weight="normal">11.2 s</text>
+<text x="16.0" y="184.0" font-size="12" fill="#0b0b0b" text-anchor="start" font-weight="bold">Demanda alta</text>
+<text x="240.0" y="204.0" font-size="11" fill="#52514e" text-anchor="end" font-weight="normal">Tempo fixo — divisão igual (90 s)</text>
+<rect x="250" y="192" width="71.2" height="16" rx="3" fill="#eb6834"/>
+<text x="327.2" y="204.0" font-size="11" fill="#0b0b0b" text-anchor="start" font-weight="normal">64.7 s</text>
+<text x="240.0" y="226.0" font-size="11" fill="#52514e" text-anchor="end" font-weight="normal">Tempo fixo — ajustado à média do dia</text>
+<rect x="250" y="214" width="247.5" height="16" rx="3" fill="#6b6a65"/>
+<text x="503.5" y="226.0" font-size="11" fill="#0b0b0b" text-anchor="start" font-weight="normal">225.0 s</text>
+<text x="240.0" y="248.0" font-size="11" fill="#52514e" text-anchor="end" font-weight="normal">Adaptativo — proporcional</text>
+<rect x="250" y="236" width="31.2" height="16" rx="3" fill="#1baf7a"/>
+<text x="287.2" y="248.0" font-size="11" fill="#0b0b0b" text-anchor="start" font-weight="normal">28.4 s</text>
+<text x="240.0" y="270.0" font-size="11" fill="#52514e" text-anchor="end" font-weight="normal">Adaptativo — Webster</text>
+<rect x="250" y="258" width="17.2" height="16" rx="3" fill="#2a78d6"/>
+<text x="273.2" y="270.0" font-size="11" fill="#0b0b0b" text-anchor="start" font-weight="normal">15.6 s</text>
+</svg>

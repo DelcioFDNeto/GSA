@@ -1,0 +1,55 @@
+// Fluxo 3 — detecção de falhas por ausência de leitura (versão 1.0)
+// Gerar imagem: dot -Tpng -Gdpi=200 fluxo3_falhas.dot -o ../img/fluxo3_falhas.png
+digraph GSA {
+  graph [rankdir=TB, fontname="DejaVu Sans", fontsize=13, nodesep=0.22, ranksep=0.28,
+         bgcolor="white", pad=0.3, newrank=true, compound=true];
+  node  [fontname="DejaVu Sans", fontsize=11, style="filled", color="#37474F", penwidth=1.2,
+         margin="0.14,0.06"];
+  edge  [fontname="DejaVu Sans", fontsize=10, color="#37474F", arrowsize=0.8, penwidth=1.1];
+  subgraph cluster_legenda {
+    label=<<b>Legenda</b>>; labeljust=l; style="rounded"; color="#B0BEC5"; fontsize=12; margin=6;
+    l1 [fontsize=10, label="Início / fim", shape=ellipse, fillcolor="#C8E6C9"];
+    l2 [fontsize=10, label="Processo", shape=box, fillcolor="#E3F2FD"];
+    l3 [fontsize=10, label="Motor de cálculo", shape=box, fillcolor="#D1C4E9"];
+    l4 [fontsize=10, label="Decisão", shape=diamond, fillcolor="#FFE0B2"];
+    l5 [fontsize=10, label="Banco de dados", shape=cylinder, fillcolor="#ECEFF1"];
+    l6 [fontsize=10, label="Erro (resposta)", shape=box, style="rounded,filled", fillcolor="#FFCDD2"];
+    l1 -> l2 -> l3 -> l4 -> l5 -> l6 [style=invis];
+  }
+  subgraph cluster_fluxo {
+    label=<<b>Fluxo 3 — Falhas por ausência de leitura (RF18)</b>>;
+    labeljust=l; style="rounded"; color="#B0BEC5"; fontsize=12; margin=6;
+
+    i3  [label="Tarefa periódica da API\n(a cada GSA_INTERVALO_VERIFICACAO_FALHAS)\nou POST /falhas/verificar", shape=ellipse, fillcolor="#C8E6C9"];
+    s1  [label="Lista as vias monitoradas:\ncruzamento ativo e semáforo ativo", shape=box, fillcolor="#E3F2FD"];
+    db  [label="Banco de dados\nvias · leituras · falhas\nparâmetros", shape=cylinder, fillcolor="#ECEFF1"];
+    d0  [label="Ainda há via\npara verificar?", shape=diamond, fillcolor="#FFE0B2"];
+    d1  [label="Tempo sem leitura\n> limite configurado?", shape=diamond, fillcolor="#FFE0B2"];
+    d2  [label="Já existe falha\naberta da via?", shape=diamond, fillcolor="#FFE0B2"];
+    s2  [label="Registra falha \"sem_leitura\"\ncom a data da última leitura", shape=box, fillcolor="#E3F2FD"];
+    px  [label="Passa para a\npróxima via", shape=box, fillcolor="#E3F2FD"];
+    f1  [label="Fim — novas falhas\naparecem em GET /falhas", shape=ellipse, fillcolor="#C8E6C9"];
+
+    i3 -> s1 -> d0;
+    s1 -> db [dir=both, style=dashed];
+    d0 -> d1 [label=" Sim"];
+    d0 -> f1 [label=" Não"];
+    d1 -> d2 [label=" Sim"];
+    d1 -> px [label=" Não"];
+    d2 -> s2 [label=" Não"];
+    d2 -> px [label=" Sim"];
+    s2 -> px;
+    px -> d0 [constraint=false, tailport=e, headport=ne];
+    {rank=same; s1; db}
+    {rank=same; d0; f1}
+  }
+
+  subgraph cluster_resolucao {
+    label=<<b>Resolução da falha</b>>; labeljust=l; style="rounded"; color="#B0BEC5"; fontsize=12; margin=6;
+    r1  [label="Nova leitura da via (Fluxo 1)\nou POST /falhas/{id}/resolver", shape=ellipse, fillcolor="#C8E6C9"];
+    s3  [label="Falha marcada como resolvida\n(data e observação)", shape=box, fillcolor="#E3F2FD"];
+    r1 -> s3;
+  }
+  px -> r1 [style=invis];
+  {rank=same; l1; i3}
+}

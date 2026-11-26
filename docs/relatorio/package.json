@@ -1,0 +1,12 @@
+{
+  "name": "gsa-relatorio",
+  "private": true,
+  "description": "Gera os relatórios (DOCX) do Sistema de Gestão Semafórica Adaptativa",
+  "scripts": {
+    "final": "node gerar_relatorio_final.js",
+    "parcial": "node parcial/gerar_relatorio_parcial.js"
+  },
+  "dependencies": {
+    "docx": "^9.7.1"
+  }
+}

@@ -1,0 +1,56 @@
+// Fluxo 1 — recebimento de leituras e geração automática do ciclo (versão 1.0)
+// Gerar imagem: dot -Tpng -Gdpi=200 fluxo1_leituras.dot -o ../img/fluxo1_leituras.png
+digraph GSA {
+  graph [rankdir=TB, fontname="DejaVu Sans", fontsize=13, nodesep=0.22, ranksep=0.28,
+         bgcolor="white", pad=0.3, newrank=true, compound=true];
+  node  [fontname="DejaVu Sans", fontsize=11, style="filled", color="#37474F", penwidth=1.2,
+         margin="0.14,0.06"];
+  edge  [fontname="DejaVu Sans", fontsize=10, color="#37474F", arrowsize=0.8, penwidth=1.1];
+  subgraph cluster_legenda {
+    label=<<b>Legenda</b>>; labeljust=l; style="rounded"; color="#B0BEC5"; fontsize=12; margin=6;
+    l1 [fontsize=10, label="Início / fim", shape=ellipse, fillcolor="#C8E6C9"];
+    l2 [fontsize=10, label="Processo", shape=box, fillcolor="#E3F2FD"];
+    l3 [fontsize=10, label="Motor de cálculo", shape=box, fillcolor="#D1C4E9"];
+    l4 [fontsize=10, label="Decisão", shape=diamond, fillcolor="#FFE0B2"];
+    l5 [fontsize=10, label="Banco de dados", shape=cylinder, fillcolor="#ECEFF1"];
+    l6 [fontsize=10, label="Erro (resposta)", shape=box, style="rounded,filled", fillcolor="#FFCDD2"];
+    l1 -> l2 -> l3 -> l4 -> l5 -> l6 [style=invis];
+  }
+  subgraph cluster_fluxo {
+    label=<<b>Fluxo 1 — Recebimento de leituras e geração do ciclo (RF04, RF05, RF12, RNF07)</b>>;
+    labeljust=l; style="rounded"; color="#B0BEC5"; fontsize=12; margin=6;
+
+    i1  [label="Sistema de detecção (YOLO)\nenvia lote de contagens", shape=ellipse, fillcolor="#C8E6C9"];
+    r1  [label="POST /cruzamentos/{id}/leituras\nRota / Controller (FastAPI)", shape=box, fillcolor="#E3F2FD"];
+    a1  [label="X-API-Key ou\ntoken válido?", shape=diamond, fillcolor="#FFE0B2"];
+    d1  [label="JSON válido?\n(Pydantic)", shape=diamond, fillcolor="#FFE0B2"];
+    d2  [label="Cruzamento ativo,\nvias existem e\npertencem a ele?", shape=diamond, fillcolor="#FFE0B2"];
+    s1  [label="Service grava as leituras\ncom data e horário", shape=box, fillcolor="#E3F2FD"];
+    s2  [label="Encerra falhas de ausência\nde leitura dessas vias", shape=box, fillcolor="#E3F2FD"];
+    d3  [label="Há vias com\nsemáforo ativo?", shape=diamond, fillcolor="#FFE0B2"];
+    m1  [label="Motor calcula os tempos\n(Fluxo 2)", shape=box, fillcolor="#D1C4E9"];
+    s3  [label="Grava ciclo e tempo de\ncada semáforo (histórico)", shape=box, fillcolor="#E3F2FD"];
+    db  [label="Banco de dados\nleituras · ciclos · falhas", shape=cylinder, fillcolor="#ECEFF1"];
+    s4  [label="Registra falha\n\"cálculo indisponível\"", shape=box, fillcolor="#E3F2FD"];
+    f1  [label="Resposta 201 JSON\nleituras + ciclo gerado\n(ou aviso)", shape=ellipse, fillcolor="#C8E6C9"];
+    e1  [label="Erro 401\nnão autenticado", shape=box, style="rounded,filled", fillcolor="#FFCDD2"];
+    e2  [label="Erro 400\ndados inválidos", shape=box, style="rounded,filled", fillcolor="#FFCDD2"];
+    e3  [label="Erro 404 (inexistente)\nou 400 (inativo / outra via)", shape=box, style="rounded,filled", fillcolor="#FFCDD2"];
+
+    i1 -> r1 -> a1;
+    a1 -> d1 [label=" Sim"];  a1 -> e1 [label=" Não"];
+    d1 -> d2 [label=" Sim"];  d1 -> e2 [label=" Não"];
+    d2 -> s1 [label=" Sim"];  d2 -> e3 [label=" Não"];
+    s1 -> s2 -> d3;
+    d3 -> m1 [label=" Sim"];  d3 -> s4 [label=" Não"];
+    m1 -> s3 -> f1;
+    s4 -> f1;
+    s1 -> db [style=dashed, arrowhead=none];
+    {rank=same; a1; e1}
+    {rank=same; d1; e2}
+    {rank=same; d2; e3}
+    {rank=same; d3; s4}
+    {rank=same; s1; db}
+  }
+  {rank=same; l1; i1}
+}

@@ -1,0 +1,30 @@
+# API + PostgreSQL. Defina GSA_JWT_SEGREDO e GSA_CHAVE_API_DETECCAO no .env antes de subir:
+#   docker compose up --build
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: gsa
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gsa}
+      POSTGRES_DB: gsa
+    volumes:
+      - dados_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gsa -d gsa"]
+      interval: 5s
+      retries: 12
+
+  api:
+    build: .
+    environment:
+      GSA_DATABASE_URL: postgresql+psycopg://gsa:${POSTGRES_PASSWORD:-gsa}@db:5432/gsa
+      GSA_JWT_SEGREDO: ${GSA_JWT_SEGREDO:?defina GSA_JWT_SEGREDO no .env}
+      GSA_CHAVE_API_DETECCAO: ${GSA_CHAVE_API_DETECCAO:?defina GSA_CHAVE_API_DETECCAO no .env}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  dados_postgres:

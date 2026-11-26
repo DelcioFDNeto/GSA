@@ -1,0 +1,52 @@
+// Fluxo 1 — recebimento de leituras
+// Gerar imagem: dot -Tpng -Gdpi=200 ARQUIVO.dot -o ../img/ARQUIVO.png
+digraph GSA {
+  graph [rankdir=TB, fontname="DejaVu Sans", fontsize=13, nodesep=0.22, ranksep=0.28,
+         bgcolor="white", pad=0.3, newrank=true, compound=true];
+  node  [fontname="DejaVu Sans", fontsize=11, style="filled", color="#37474F", penwidth=1.2,
+         margin="0.14,0.06"];
+  edge  [fontname="DejaVu Sans", fontsize=10, color="#37474F", arrowsize=0.8, penwidth=1.1];
+
+  // ---------- Legenda ----------
+  subgraph cluster_legenda {
+    label=<<b>Legenda</b>>; labeljust=l; style="rounded"; color="#B0BEC5"; fontsize=12; margin=6;
+    l1 [fontsize=10, label="Início / fim", shape=ellipse, fillcolor="#C8E6C9"];
+    l2 [fontsize=10, label="Processo", shape=box, fillcolor="#E3F2FD"];
+    l3 [fontsize=10, label="Motor de cálculo", shape=box, fillcolor="#D1C4E9"];
+    l4 [fontsize=10, label="Decisão", shape=diamond, fillcolor="#FFE0B2"];
+    l5 [fontsize=10, label="Banco de dados", shape=cylinder, fillcolor="#ECEFF1"];
+    l6 [fontsize=10, label="Erro (resposta)", shape=box, style="rounded,filled", fillcolor="#FFCDD2"];
+    l7 [fontsize=10, label="Próxima fase", shape=box, style="dashed,rounded", color="#78909C", fontcolor="#546E7A", fillcolor="white"];
+    l1 -> l2 -> l3 -> l4 -> l5 -> l6 -> l7 [style=invis];
+  }
+
+  // ---------- Fluxo 1: recebimento de leituras ----------
+  subgraph cluster_leituras {
+    label=<<b>Fluxo 1 — Recebimento de leituras (RF04/RF05)</b>>; labeljust=l;
+    style="rounded"; color="#B0BEC5"; fontsize=12; margin=6;
+
+    i1  [label="Sistema de detecção (YOLO)\nenvia contagem por via", shape=ellipse, fillcolor="#C8E6C9"];
+    r1  [label="POST /cruzamentos/{id}/leituras\nRota / Controller (FastAPI)", shape=box, fillcolor="#E3F2FD"];
+    d1  [label="JSON válido?\n(Pydantic: tipos,\nquantidade ≥ 0)", shape=diamond, fillcolor="#FFE0B2"];
+    d2  [label="Cruzamento existe\ne está ativo?", shape=diamond, fillcolor="#FFE0B2"];
+    d3  [label="Vias existem e\npertencem ao\ncruzamento?", shape=diamond, fillcolor="#FFE0B2"];
+    s1  [label="Service registra cada leitura\ncom data e horário", shape=box, fillcolor="#E3F2FD"];
+    db1 [label="Banco de dados\nleituras_trafego", shape=cylinder, fillcolor="#ECEFF1"];
+    f1  [label="Resposta 201\nJSON", shape=ellipse, fillcolor="#C8E6C9"];
+    e1  [label="Erro 400\nresposta imediata", shape=box, style="rounded,filled", fillcolor="#FFCDD2"];
+    e2  [label="Erro 404 (inexistente)\nou 400 (inativo)", shape=box, style="rounded,filled", fillcolor="#FFCDD2"];
+
+    i1 -> r1 -> d1;
+    d1 -> d2 [label=" Sim"];
+    d1 -> e1 [label=" Não"];
+    d2 -> d3 [label=" Sim"];
+    d2 -> e2 [label=" Não"];
+    d3 -> s1 [label=" Sim"];
+    d3 -> e2 [label=" Não"];
+    s1 -> db1 -> f1;
+    {rank=same; d1; e1}
+    {rank=same; d3; e2}
+  }
+
+  {rank=same; l1; i1}
+}

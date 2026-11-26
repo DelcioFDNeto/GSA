@@ -1,0 +1,48 @@
+// Arquitetura em camadas da API (versão 1.2)
+// Gerar imagem: dot -Tpng -Gdpi=200 arquitetura.dot -o ../img/arquitetura.png
+digraph Arquitetura {
+  graph [rankdir=TB, fontname="DejaVu Sans", fontsize=12, nodesep=0.3, ranksep=0.4,
+         bgcolor="white", pad=0.3, compound=true];
+  node  [fontname="DejaVu Sans", fontsize=11, style="filled", color="#37474F", penwidth=1.2,
+         shape=box, margin="0.14,0.08"];
+  edge  [fontname="DejaVu Sans", fontsize=10, color="#37474F", arrowsize=0.8, penwidth=1.1];
+
+  subgraph cluster_clientes {
+    label=<<b>Clientes</b>>; labeljust=l; style="rounded"; color="#B0BEC5";
+    yolo [label="Sistema de detecção\nYOLO + ByteTrack (deteccao/)\nX-API-Key", fillcolor="#C8E6C9", shape=ellipse];
+    usuario [label="Administrador / Operador\nSwagger ou HTTP\ntoken JWT", fillcolor="#C8E6C9", shape=ellipse];
+    painel [label="Painel web (/painel)\nnavegador, EventSource", fillcolor="#C8E6C9", shape=ellipse];
+  }
+
+  subgraph cluster_api {
+    label=<<b>API FastAPI (app/)</b>>; labeljust=l; style="rounded"; color="#B0BEC5";
+    rotas [label="api/routes\ncontrollers REST\n38 operações", fillcolor="#E3F2FD"];
+    sse [label="GET /eventos\nServer-Sent Events", fillcolor="#E3F2FD"];
+    canal [label="core/eventos\ncanal de eventos\n(ciclo, leituras, falha)", fillcolor="#FFE0B2"];
+    seg [label="api/deps + core/seguranca\nautenticação e perfis", fillcolor="#E3F2FD"];
+    schemas [label="schemas\nvalidação Pydantic\nJSON camelCase", fillcolor="#E3F2FD"];
+    services [label="services\nregras de negócio", fillcolor="#E3F2FD"];
+    motor [label="motor\nproporcional, Webster, plano fixo\nestágios (sem banco nem HTTP)", fillcolor="#D1C4E9"];
+    repos [label="repositories\nconsultas SQLAlchemy", fillcolor="#E3F2FD"];
+    tarefa [label="tarefa periódica\nverificação de falhas", fillcolor="#FFE0B2"];
+    {rank=same; seg; rotas; schemas}
+    {rank=same; tarefa; services; canal}
+    {rank=same; motor; repos}
+  }
+
+  db [label="SQLite (dev)\nPostgreSQL (produção)\nmigrações Alembic", shape=cylinder, fillcolor="#ECEFF1"];
+
+  yolo -> rotas; usuario -> rotas;
+  painel -> rotas [label=" REST", style=dashed];
+  painel -> sse [dir=back, label=" eventos"];
+  services -> canal [label=" publica"];
+  canal -> sse;
+  seg -> rotas [dir=none, style=dashed];
+  rotas -> schemas [dir=none, style=dashed];
+  rotas -> services;
+  tarefa -> services;
+  services -> motor;
+  services -> repos;
+  repos -> db;
+
+}

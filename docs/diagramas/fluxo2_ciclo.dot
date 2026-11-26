@@ -1,0 +1,64 @@
+// Fluxo 2 — cálculo do ciclo semafórico (versão 1.2)
+// Gerar imagem: dot -Tpng -Gdpi=200 fluxo2_ciclo.dot -o ../img/fluxo2_ciclo.png
+digraph GSA {
+  graph [rankdir=TB, fontname="DejaVu Sans", fontsize=13, nodesep=0.22, ranksep=0.28,
+         bgcolor="white", pad=0.3, newrank=true, compound=true];
+  node  [fontname="DejaVu Sans", fontsize=11, style="filled", color="#37474F", penwidth=1.2,
+         margin="0.14,0.06"];
+  edge  [fontname="DejaVu Sans", fontsize=10, color="#37474F", arrowsize=0.8, penwidth=1.1];
+  subgraph cluster_legenda {
+    label=<<b>Legenda</b>>; labeljust=l; style="rounded"; color="#B0BEC5"; fontsize=12; margin=6;
+    l1 [fontsize=10, label="Início / fim", shape=ellipse, fillcolor="#C8E6C9"];
+    l2 [fontsize=10, label="Processo", shape=box, fillcolor="#E3F2FD"];
+    l3 [fontsize=10, label="Motor de cálculo", shape=box, fillcolor="#D1C4E9"];
+    l4 [fontsize=10, label="Decisão", shape=diamond, fillcolor="#FFE0B2"];
+    l5 [fontsize=10, label="Banco de dados", shape=cylinder, fillcolor="#ECEFF1"];
+    l6 [fontsize=10, label="Erro (resposta)", shape=box, style="rounded,filled", fillcolor="#FFCDD2"];
+    l1 -> l2 -> l3 -> l4 -> l5 -> l6 [style=invis];
+  }
+  subgraph cluster_fluxo {
+    label=<<b>Fluxo 2 — Cálculo do ciclo semafórico (RF06–RF13, RF16)</b>>;
+    labeljust=l; style="rounded"; color="#B0BEC5"; fontsize=12; margin=6;
+
+    i2  [label="Lote de leituras (automático)\nou POST calcular-ciclo (operador)", shape=ellipse, fillcolor="#C8E6C9"];
+    s1  [label="Busca a última leitura e o\nsemáforo de cada via, a regra\ne os parâmetros do cruzamento", shape=box, fillcolor="#E3F2FD"];
+    db  [label="Banco de dados\nleituras · semáforos\nparâmetros", shape=cylinder, fillcolor="#ECEFF1"];
+    d0  [label="Alguma via sem\nleitura recente?", shape=diamond, fillcolor="#FFE0B2"];
+    mf  [label="Modo de segurança\nplano fixo: verde igual\nentre os estágios (RF18)", shape=box, fillcolor="#D1C4E9"];
+    e0  [label="Agrupa as vias em estágios\ne classifica o fluxo por faixa\nbaixo · moderado · alto · crítico (RF07)", shape=box, fillcolor="#D1C4E9"];
+    d3  [label="Regra do\ncruzamento?", shape=diamond, fillcolor="#FFE0B2"];
+    m1  [label="Proporcional: ciclo configurado\ndemanda = veículos ÷ total (RF06)", shape=box, fillcolor="#D1C4E9"];
+    w1  [label="Webster: razão de fluxo por estágio\nC = (1,5·L + 5) ÷ (1 − Y)\nentre ciclo mínimo e máximo", shape=box, fillcolor="#D1C4E9"];
+    m0  [label="Verde disponível = ciclo − Σ entreverdes\ndistribuído pelos pesos (RF08/RF09)", shape=box, fillcolor="#D1C4E9"];
+    d1  [label="Algum estágio fora\ndo mínimo/máximo?", shape=diamond, fillcolor="#FFE0B2"];
+    m4  [label="Trava no mínimo (RF10)\nou no máximo (RF11)", shape=box, fillcolor="#D1C4E9"];
+    m5  [label="Arredonda sem perder\nsegundos do ciclo", shape=box, fillcolor="#D1C4E9"];
+    d2  [label="Simulação?\n(simular=true)", shape=diamond, fillcolor="#FFE0B2"];
+    s2  [label="Grava ciclo, tempos e modo\n(RF12/RF13) e publica o evento", shape=box, fillcolor="#E3F2FD"];
+    f1  [label="201 — ciclo gravado", shape=ellipse, fillcolor="#C8E6C9"];
+    f2  [label="200 — prévia\n(nada é gravado)", shape=ellipse, fillcolor="#C8E6C9"];
+
+    i2 -> s1 -> d0;
+    s1 -> db [dir=both, style=dashed];
+    d0 -> mf [label=" Sim"];
+    d0 -> e0 [label=" Não"];
+    e0 -> d3;
+    d3 -> m1 [label=" proporcional"];
+    d3 -> w1 [label=" webster"];
+    m1 -> m0; w1 -> m0;
+    m0 -> d1;
+    d1 -> m4 [label=" Sim"];
+    m4 -> m0 [constraint=false, label=" redistribui\n o restante", tailport=n, headport=e];
+    d1 -> m5 [label=" Não"];
+    mf -> m5;
+    m5 -> d2;
+    d2 -> s2 [label=" Não"];  d2 -> f2 [label=" Sim"];
+    s2 -> f1;
+    {rank=same; s1; db}
+    {rank=same; d0; mf}
+    {rank=same; m1; w1}
+    {rank=same; d1; m4}
+    {rank=same; d2; f2}
+  }
+  {rank=same; l1; i2}
+}
