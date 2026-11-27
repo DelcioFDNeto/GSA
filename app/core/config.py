@@ -32,6 +32,12 @@ class Settings(BaseSettings):
     # Verificação periódica de falhas, em segundos (0 desativa)
     intervalo_verificacao_falhas: int = 60
 
+    # Simulador visual de tráfego em /simulador (somente demonstração; desligado por padrão).
+    # Ele envia leituras sintéticas com a chave do sistema de detecção: use um banco de
+    # demonstração (python -m simulador já faz isso). Sem URL, o simulador fala com esta mesma API.
+    simulador_habilitado: bool = False
+    simulador_api_url: str | None = None
+
     # Segurança (RNF07)
     jwt_segredo: str | None = None  # sem valor, um segredo aleatório é gerado a cada início
     jwt_expiracao_minutos: int = 60

@@ -20,5 +20,5 @@ select = ["E", "F", "I", "UP", "B"]
 "app/api/**" = ["B008"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["app", "simulacao", "deteccao"]
+known-first-party = ["app", "simulacao", "deteccao", "simulador"]
 known-third-party = ["alembic"]

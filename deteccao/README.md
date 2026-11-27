@@ -68,6 +68,26 @@ O vídeo anotado mostra as zonas, as caixas com o id de cada veículo, a contage
 e o último ciclo devolvido pela API. Para abrir no navegador, converta para H.264:
 `ffmpeg -i anotado.mp4 -c:v libx264 -pix_fmt yuv420p anotado_h264.mp4`.
 
+## Câmera sintética do simulador
+
+O simulador visual (`python -m simulador`, ver o README principal) usa este mesmo módulo: as
+detecções vêm dos veículos simulados (caixa, classe COCO, id persistente e confiança, no formato
+do YOLO + ByteTrack) e a ponte do simulador conta com `ponto_de_contato`, `ContadorJanela` e
+`montar_lote`, exatamente como o `contador_yolo.py`.
+
+A simulação em malha fechada mostrou um efeito do desenho das zonas que vale para câmeras reais:
+
+- **zona cobrindo a aproximação inteira** (como em `exemplo_zonas.json`): quem espera mais de uma
+  janela é contado de novo. A contagem superestima o fluxo de chegada que a regra de Webster
+  espera, mas é o único sinal de fila acumulada que chega ao GSA — e foi a configuração com melhor
+  desempenho nos horários de pico;
+- **faixa estreita na entrada do quadro** ("laço virtual"): cada veículo conta uma vez, então a
+  janela mede as chegadas com precisão — enquanto a fila cabe no quadro. Com fila além do campo de
+  visão, a câmera só vê a descarga, e o GSA não percebe o acúmulo e subdimensiona o verde.
+
+Em qualquer caso, a câmera precisa enxergar a fila normal de pico: no simulador ela cobre 72 m de
+cada aproximação.
+
 ## Validação feita e limitações
 
 - O pipeline foi validado com o vídeo de amostra `car-detection.mp4` do repositório

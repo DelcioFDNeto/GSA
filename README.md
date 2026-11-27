@@ -2,7 +2,8 @@
 
 Backend que recebe a contagem de veículos por via de um cruzamento, aplica regras de negócio
 configuráveis e calcula automaticamente o tempo de sinal verde de cada semáforo, guardando o
-histórico de leituras, ciclos e falhas. Um painel web mostra o cruzamento ao vivo.
+histórico de leituras, ciclos e falhas. Um painel web mostra o cruzamento ao vivo, e um simulador
+visual de tráfego (gêmeo digital) mostra o GSA comandando os semáforos de um cruzamento simulado.
 
 A decisão **não usa inteligência artificial**: a detecção e a contagem de veículos ficam a cargo de
 um sistema externo de visão computacional (YOLO), que envia os números para a API. O backend
@@ -50,6 +51,7 @@ Disciplina: **Back-end Frameworks** · Orientador: **Wilson Cosmos**
 | Implantação | Docker · docker compose · Render (blueprint `render.yaml`) |
 | Diagramas | Graphviz |
 | Detecção de veículos | YOLO (Ultralytics) + ByteTrack — contador de exemplo em `deteccao/`, fora da API |
+| Simulador visual | Canvas 2D e módulos JavaScript sem dependências; modelo de seguimento IDM; testes com `node --test` |
 
 ## Como executar
 
@@ -70,6 +72,8 @@ uvicorn app.main:app --reload
 - Swagger UI: <http://127.0.0.1:8000/docs> (botão **Authorize** para login ou chave de API)
 - ReDoc: <http://127.0.0.1:8000/redoc>
 - Saúde da API: <http://127.0.0.1:8000/health>
+- Simulador visual de tráfego: `python -m simulador` e <http://127.0.0.1:8000/simulador/> (banco de
+  demonstração próprio; ver [Simulador visual de tráfego](#simulador-visual-de-tráfego-gêmeo-digital))
 
 ### Docker (API + PostgreSQL)
 
@@ -214,6 +218,173 @@ ponta, mas nesse ângulo o modelo pequeno confundiu carros com outros objetos e 
 Detalhes e limitações em [`deteccao/README.md`](deteccao/README.md);
 vídeo anotado em [`docs/demo/yolo_validacao.mp4`](docs/demo/yolo_validacao.mp4).
 
+## Simulador visual de tráfego (gêmeo digital)
+
+![Simulador: cruzamento B comandado pelo GSA, com as detecções sintéticas no formato YOLO + ByteTrack](docs/img/simulador.png)
+
+Simulação microscópica, em 2D e vista de cima, do cruzamento de demonstração B, com os semáforos
+**comandados pelo motor do GSA**. Os veículos simulados geram as contagens, as contagens viram
+leituras na API e o ciclo calculado volta para os semáforos: é uma malha fechada, sem animação
+pré-programada e sem algoritmo de temporização próprio no simulador.
+
+```bash
+python -m simulador        # banco de demonstração próprio, migrações, seed e chave só do servidor
+```
+
+Abra <http://127.0.0.1:8000/simulador/>. O painel ao vivo continua em `/painel/?cruzamento=2` e mostra,
+em tempo real, as leituras e os ciclos que o simulador produz.
+
+| Opção | Uso |
+|---|---|
+| `--porta`, `--host` | Onde a API sobe (padrão `127.0.0.1:8000`) |
+| `--recriar` | Apaga o banco de demonstração e popula de novo |
+| `--banco <url>` | Outro banco (padrão `sqlite:///./gsa_simulador.db`) |
+| `--api-url <url>` | Câmera sintética de um GSA remoto (ex.: o deploy do Render); exige a `GSA_CHAVE_API_DETECCAO` dele |
+
+> As leituras são **sintéticas**. `python -m simulador` usa `gsa_simulador.db`, separado do `gsa.db`.
+> O simulador fica **desligado** em `uvicorn app.main:app` e no contêiner; `GSA_SIMULADOR_HABILITADO=1`
+> o liga. Use só em ambiente de demonstração: a rota de quadros envia leituras com a chave do sistema
+> de detecção sem pedir login. A chave fica no servidor e nunca chega ao navegador. As rotas do
+> simulador (`/simulador/api/...`) não fazem parte da API do GSA nem do Swagger.
+
+A interface usa HTML, CSS, JavaScript e Canvas 2D, e não Pygame ou SUMO: roda em qualquer navegador,
+sem placa de vídeo nem instalação extra, fica ao lado do painel servido pelo FastAPI e deixa a física
+testável no Node. Com dois cruzamentos, 10× e caixas ligadas, a página mede 60 quadros/s; desenhar os
+dois canvas custa cerca de 2 ms por quadro.
+
+### Como funciona
+
+```
+navegador (/simulador)                          servidor (mesmo processo da API)
+├─ veículos: modelo IDM, passo de 0,05 s        ├─ GET  /simulador/api/cruzamentos/{id}/configuracao
+├─ desenho em Canvas 2D a 60 quadros/s          │       GET /cruzamentos/{id}, GET /parametros; plano fixo do app.motor
+├─ câmera sintética, 2 quadros/s:               ├─ POST /simulador/api/sessoes       zonas → deteccao.zonas
+│  [id, classe, x1, y1, x2, y2, confiança] ───► ├─ POST /simulador/api/sessoes/{id}/quadros
+│                                               │       ContadorJanela por zona; a cada intervaloContagem:
+│                                               │       montar_lote → POST /cruzamentos/{id}/leituras (X-API-Key)
+└─ controlador semafórico ◄──── plano ───────── │       cicloGerado → plano (app.motor.agrupar_estagios)
+```
+
+- **Configuração da API.** Vias, sentidos, faixas, estágios e semáforos vêm de `GET /cruzamentos/{id}`;
+  `intervaloContagem` e os demais parâmetros, de `GET /parametros`. Cada via é desenhada com as faixas
+  cadastradas, com mão de direção à direita (`direcao` é o sentido de circulação: "sentido norte" anda
+  para o norte). Direções diagonais não são desenhadas e geram aviso.
+- **Detecção.** A câmera não roda o YOLO: para cada veículo no quadro, gera a caixa normalizada (com
+  um pequeno ruído), a classe COCO (`car`, `motorcycle`, `bus`, `truck`), a confiança (menor na borda do
+  quadro; motos às vezes não são detectadas, ônibus e caminhões às vezes são confundidos) e um id que
+  acompanha o veículo, como o ByteTrack. O servidor filtra classe e confiança (0,3) e conta como o
+  `contador_yolo.py`: `ponto_de_contato` → `ContadorJanela` → `montar_lote`. A contagem sai dos
+  veículos que estão na tela, não de números sorteados à parte.
+- **Janelas em tempo simulado.** Cada janela dura `intervaloContagem` segundos **simulados** (90 s). A
+  10×, fecha a cada 9 s reais e continua representando 90 s: a conversão do Webster
+  (`q = veículos × 3600 / intervaloContagem`) fica coerente em qualquer velocidade.
+- **Plano.** O `cicloGerado` vira estágios com o agrupamento do próprio motor. O amarelo vem do ciclo; o
+  vermelho de segurança é o maior `tempoVermelho` **configurado** nos semáforos do estágio, porque o
+  `tempoVermelho` do ciclo é o vermelho total da via (duração − verde − amarelo). O plano é conferido:
+  a soma dos estágios precisa dar `duracaoTotal` e verde + amarelo + vermelho de cada via também.
+- **Transição segura.** O plano novo fica pendente e entra no fim do ciclo em andamento, depois do
+  vermelho geral do último estágio. Antes de aceitar, o controlador recusa estágios que abram movimentos
+  que se cruzam, verde fora do mínimo/máximo e amarelo ou vermelho menores que os cadastrados; durante a
+  execução, se duas vias conflitantes abrissem, fecharia todas.
+- **Modo de segurança.** Ciclos em `contingencia` (plano fixo) são executados e mostrados com o motivo.
+  "Falha de câmera" tira uma via do lote: quando ela passa `tempoMaximoSemLeitura` sem leitura (relógio
+  real, 300 s por padrão), o próprio GSA passa ao plano fixo. Sem resposta do GSA por duas janelas e um
+  ciclo, o controlador simulado volta ao plano fixo local, como um controlador que perde a central.
+- **Início.** Até o primeiro ciclo calculado, roda o plano fixo do GSA (verde igual, ciclo do cruzamento).
+
+### Controles e indicadores
+
+| Controle | Atalho | Efeito |
+|---|---|---|
+| Iniciar, pausar, reiniciar | espaço, `R` | Reiniciar recomeça do zero, com a mesma semente e uma janela de contagem nova |
+| Velocidade 1×, 2×, 5×, 10× | `1` `2` `5` `0` | Mais passos por segundo real; física, chegadas, semáforos e janelas no mesmo relógio |
+| Zoom 1×, 1,5×, 2× | — | Só o desenho; a câmera vê sempre o quadro inteiro |
+| Caixas YOLO, zonas | `B`, `Z` | Caixas com `id:17 car 0.91` (paleta do Ultralytics); zonas com a contagem parcial da janela |
+| Comparar com tempo fixo | `C` | Cruzamento A (tempo fixo) ao lado do B (GSA), com as mesmas chegadas |
+| Horário | — | Perfil de demanda do dia (picos às 8h e 18h), opcionalmente avançando com o tempo simulado |
+| Fluxo por via | — | ±10 % da demanda base, de 0 a 300 % |
+| Congestionamento | — | Demanda ×1,5 em uma avenida |
+| Falha de câmera | — | A via fica fora do lote enviado ao GSA |
+| Semente | — | Outra sequência de chegadas (também em `?semente=`) |
+
+O painel mostra o estágio e a fase com o tempo restante, a barra do ciclo e o plano pendente; por via,
+veículos, parados, fila (veículos e metros), espera média, e, do último cálculo do GSA, demanda
+percentual, classificação de fluxo e verde; o total que atravessou, a vazão, a espera média e a fila
+média e máxima; a regra aplicada, o ciclo, o grau de saturação, a janela de contagem, o estado da conexão,
+o último JSON enviado ao GSA e o último `cicloGerado`.
+
+### Modelo de tráfego
+
+- **Seguimento: Intelligent Driver Model (IDM)**, com aceleração e frenagem progressivas e distância de
+  segurança. O semáforo fechado é um obstáculo parado na linha de retenção.
+- **Classes:** carro (4,5 m, 50 km/h), moto (2,1 m, 55 km/h), ônibus (12 m, 45 km/h) e caminhão (9 m,
+  43 km/h), na proporção 78/12/4/6 %, com velocidade desejada variando ±12 % entre motoristas. Os
+  parâmetros fazem a fila descarregar a ~1.800 veículos/h por faixa com essa mistura — o
+  `fluxoSaturacaoPorFaixa` do GSA.
+- **Chegadas:** processo de Poisson por via, com fluxo aleatório próprio por via e reproduzível pela
+  semente. Os veículos nascem 70 m antes do quadro; se não cabem, esperam na entrada (e contam na fila e
+  na espera).
+- **Amarelo:** para quem consegue frear com até 3,6 m/s² (menos para pesados); segue quem já não
+  consegue parar antes da linha. **Partida:** tempo de reação de 0,45 a 1 s por motorista, então a fila
+  sai em onda.
+- **Cruzamento:** só entra quem tem verde, sem veículo do movimento conflitante dentro dele e com espaço
+  depois dele. Nos testes, uma hora de pico pesado com planos mudando não teve nenhuma sobreposição.
+- **Medidas:** espera = tempo abaixo de 0,5 m/s antes da retenção; fila = veículos abaixo de 2 m/s antes
+  da retenção. A câmera cobre 72 m de cada aproximação.
+- **Movimentos:** só em linha reta. Conversões, com os seus conflitos e estágios, ficam para depois.
+
+### Zonas de contagem
+
+| Zona | Conta | Efeito no GSA |
+|---|---|---|
+| **Aproximação inteira** (padrão, como `exemplo_zonas.json`) | Quem passou **ou esperou** na zona durante a janela | Quem espera mais de uma janela conta de novo: superestima o fluxo de chegada, mas é o único sinal de fila acumulada que chega ao GSA |
+| Faixa de entrada (16 m na borda do quadro) | Cada chegada uma vez | Mede o `q` do Webster com precisão enquanto a fila cabe no quadro; com fila além do campo de visão, a câmera só vê a descarga e o GSA subdimensiona o verde |
+
+Nos picos, a aproximação inteira foi claramente melhor (detalhes em [`deteccao/README.md`](deteccao/README.md)).
+
+### Tempo fixo × GSA no simulador
+
+![Modo comparativo: cruzamento A com tempo fixo e B com o GSA, com as mesmas chegadas](docs/img/simulador_comparacao.png)
+
+No modo comparativo, um único gerador de chegadas alimenta os dois cruzamentos: os veículos de A e de B
+chegam nos mesmos instantes, com a mesma classe, cor e velocidade desejada. O cruzamento A executa um
+plano fixo calculado pelo motor do GSA: o **verde igual** (o plano fixo de segurança, ciclo de 120 s) ou
+o **ajustado à média do dia** (a regra do cruzamento aplicada uma vez à demanda média das 6h às 22h, como
+um técnico programaria um semáforo convencional). O painel compara espera média e acumulada, fila média e
+máxima, veículos atendidos, vazão e a redução percentual da espera.
+
+Espera média por veículo atendido (A → B), 30 minutos simulados, sementes 2026 e 11, zona da
+aproximação inteira, com os ciclos calculados pela API do GSA:
+
+| Cenário | A = verde igual (55/55 s, ciclo 120 s) | A = ajustado à média do dia (15/15 s, ciclo 40 s) |
+|---|---|---|
+| 7h | 18,2 → 7,5 s (−58%) · 15,9 → 7,4 s (−54%) | 7,6 → 7,5 s (−1%) · 6,7 → 7,4 s (+10%) |
+| 8h, pico da manhã | 18,2 → 11,6 s (−37%) · 17,6 → 13,5 s (−23%) | 44,3 → 11,6 s (−74%) · 53,8 → 13,5 s (−75%) |
+| 12h | 16,9 → 6,5 s (−61%) · 13,7 → 6,1 s (−55%) | 6,0 → 6,5 s (+10%) · 6,0 → 6,1 s (+2%) |
+| 18h, pico da tarde | 18,1 → 8,5 s (−53%) · 18,3 → 15,2 s (−17%) | 37,0 → 8,5 s (−77%) · 79,9 → 15,2 s (−81%) |
+| 6h30 → 9h com o relógio avançando (150 min, semente 2026) | 18,5 → 8,0 s (−57%) | 63,8 → 8,0 s (−87%) |
+| Congestionamento ×1,5 na avenida às 8h (semente 2026) | 106,5 → 93,2 s (−12%) | — |
+
+O plano ajustado sai com o ciclo mínimo porque a demanda média do dia é baixa: serve bem fora do
+pico e fica curto nos picos. Para reproduzir uma linha, com o simulador no ar:
+`node simulador/comparar.mjs --hora 8 --semente 2026 --base igual` (sem desenho; meia hora simulada
+roda em alguns segundos contra a API).
+
+Os números vêm de demanda sintética e de um modelo de simulação; servem para comparar estratégias sob as
+mesmas chegadas, não como medição em via real. Em demanda estável e fora do pico, um plano fixo bem
+ajustado empata com o GSA (às vezes ganha por pouco): o ganho do controle adaptativo aparece quando a
+demanda muda e nos picos.
+
+### Testes do simulador
+
+`pytest` roda `tests/test_simulador.py` (ponte, zonas, envio ao GSA, janelas, modo de segurança, uma
+câmera por cruzamento, planos de tempo fixo) e os 39 testes de `tests/js/` com `node --test`
+(movimento, filas, partida em onda, fluxo de saturação, decisão no amarelo, ausência de colisões e de
+verdes conflitantes, transições, troca segura de plano, aplicação do `cicloGerado`, chegadas de
+Poisson, mesmas chegadas em A e B, detecções, comunicação e controles). O teste no navegador
+(`tests/test_simulador_navegador.py`, opcional) sobe `python -m simulador` e usa os controles da página
+com o Playwright (`pip install playwright`; usa o Chrome ou o Edge instalado).
+
 ## Endpoints (38 operações)
 
 Acesso: **P** público · **D** sistema de detecção (`X-API-Key`) ou usuário logado ·
@@ -263,8 +434,11 @@ um intermediário externo (ex.: Redis).
 ## Testes, qualidade e desempenho
 
 ```bash
-pytest                                   # 111 testes (motor, API, segurança, migrações, tempo real,
-                                         # simulação e lógica do contador YOLO)
+pytest                                   # 127 testes (motor, API, segurança, migrações, tempo real,
+                                         # simulação, contador YOLO e simulador visual — inclui os 39
+                                         # testes JavaScript do simulador, se o Node.js estiver instalado)
+node --test tests/js/                    # só os testes JavaScript do simulador
+GSA_TESTE_NAVEGADOR=1 pytest tests/test_simulador_navegador.py   # controles no navegador (opcional)
 GSA_TESTE_DATABASE_URL=postgresql+psycopg://usuario:senha@localhost/banco_vazio pytest
 ruff check . && ruff format --check .
 python -m scripts.benchmark --lotes 500  # RNF10
@@ -310,6 +484,8 @@ validade do banco gratuito, por exemplo) antes de depender deles no dia da apres
 | `PORT` | `8000` | Porta do contêiner |
 | `GSA_SEED_AO_INICIAR` | `0` | `1` popula a demonstração ao iniciar o contêiner |
 | `GSA_SEED_SENHA_ADMIN`, `GSA_SEED_SENHA_OPERADOR` | `admin123`, `operador123` | Senhas dos usuários do seed |
+| `GSA_SIMULADOR_HABILITADO` | `0` | `1` liga o simulador visual em `/simulador` (só demonstração; `python -m simulador` já liga) |
+| `GSA_SIMULADOR_API_URL` | vazio | URL de um GSA remoto para a câmera sintética; vazio = a própria API, no mesmo processo |
 
 ## APIs utilizadas
 
@@ -337,8 +513,9 @@ app/
 alembic/             # migrações do banco (0001 a 0003)
 simulacao/           # modelo de filas da simulação comparativa
 deteccao/            # contador de veículos com YOLO (sistema de detecção de exemplo)
+simulador/           # simulador visual: ponte câmera sintética → GSA (Python) e interface em web/
 scripts/             # seed, demonstração do pitch, simulação, simulador de detecção, benchmark
-tests/               # testes automatizados (pytest)
+tests/               # testes automatizados (pytest) e tests/js/ (núcleo do simulador, node --test)
 docs/                # relatórios, requisitos, diagramas, imagens, vídeos e roteiro do pitch
 ```
 
@@ -370,11 +547,16 @@ docs/                # relatórios, requisitos, diagramas, imagens, vídeos e ro
 | `docs/img/swagger_*.png`, `painel_*.png` | Capturas com a API rodando sobre o banco do `scripts.seed` |
 | `docs/demo/demo_painel.mp4` / `.gif` | Gravação do painel (Playwright) durante `scripts.demo_pitch` |
 | `docs/demo/yolo_validacao.mp4` | Saída de `deteccao.contador_yolo` no vídeo de amostra |
+| `docs/img/simulador.png`, `simulador_comparacao.png` | Capturas de `python -m simulador` (pico da manhã; modo comparativo) |
 | `docs/pitch/ROTEIRO.md` | Roteiro da apresentação e checklist da demonstração |
 
 ## Limitações e evolução futura
 
 - A detecção foi validada com vídeo de amostra; falta um vídeo de cruzamento real em ângulo oblíquo.
+- O simulador visual só tem movimentos em linha reta; conversões (e os conflitos e estágios que
+  elas exigem) ficam para a próxima versão. Ele mostrou também que o GSA, por receber só contagens,
+  não enxerga fila além do campo de visão da câmera: medir a fila (ou a ocupação) seria a evolução
+  natural da detecção.
 - Integração com controladores físicos de semáforo (o GSA calcula e publica o plano; não o envia
   a um controlador).
 - Coordenação entre cruzamentos vizinhos (onda verde).

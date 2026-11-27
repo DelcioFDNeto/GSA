@@ -24,7 +24,7 @@ import httpx
 import numpy as np
 from ultralytics import YOLO
 
-from deteccao.zonas import ContadorJanela, carregar_configuracao, montar_lote
+from deteccao.zonas import ContadorJanela, carregar_configuracao, montar_lote, ponto_de_contato
 
 CORES = [(214, 120, 42), (52, 104, 235), (122, 175, 27), (0, 161, 237)]  # BGR
 
@@ -112,7 +112,10 @@ def executar(args: argparse.Namespace) -> None:
                     caixas.cls.int().tolist(),
                     strict=True,
                 ):
-                    via = contador.registrar(id_rastreio, (x1 + x2) / 2 / largura, y2 / altura)
+                    via = contador.registrar(
+                        id_rastreio,
+                        *ponto_de_contato(x1 / largura, y1 / altura, x2 / largura, y2 / altura),
+                    )
                     cor = (90, 90, 90) if via is None else (255, 255, 255)
                     cv2.rectangle(quadro, (int(x1), int(y1)), (int(x2), int(y2)), cor, 2)
                     texto = f"#{id_rastreio} {modelo.names[classe]}"

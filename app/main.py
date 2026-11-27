@@ -204,3 +204,10 @@ def _openapi_personalizado() -> dict:
 
 
 app.openapi = _openapi_personalizado
+
+if settings.simulador_habilitado:
+    # Gêmeo digital para demonstração: câmera sintética + semáforos controlados pelo GSA.
+    # Importado só quando ligado: a API não depende do simulador nem de deteccao/.
+    from simulador.servidor import montar_simulador
+
+    montar_simulador(app, settings.simulador_api_url)

@@ -1,0 +1,6 @@
+{
+  "name": "gsa-simulador-web",
+  "private": true,
+  "type": "module",
+  "description": "Módulos ES do simulador visual do GSA: rodam no navegador e nos testes (node --test tests/js)."
+}

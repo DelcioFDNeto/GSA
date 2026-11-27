@@ -13,6 +13,9 @@ COPY alembic ./alembic
 COPY app ./app
 COPY scripts ./scripts
 COPY simulacao ./simulacao
+# simulador visual (só é carregado com GSA_SIMULADOR_HABILITADO=1) e o contador de zonas que ele usa
+COPY deteccao ./deteccao
+COPY simulador ./simulador
 
 RUN useradd --create-home --uid 1000 gsa && mkdir -p /app/dados && chown gsa /app/dados
 USER gsa

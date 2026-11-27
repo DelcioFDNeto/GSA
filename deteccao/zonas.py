@@ -62,6 +62,12 @@ def configuracao_de_dicionario(dados: dict) -> Configuracao:
     return Configuracao(int(dados["cruzamentoId"]), janela, tuple(zonas), classes)
 
 
+def ponto_de_contato(x1: float, y1: float, x2: float, y2: float) -> tuple[float, float]:
+    """Centro da base da caixa (x1, y1, x2, y2), com o eixo y da imagem apontando para baixo:
+    é onde o veículo toca a pista e o ponto que o contador usa para decidir a zona."""
+    return (x1 + x2) / 2, y2
+
+
 @dataclass
 class ContadorJanela:
     """Conta veículos distintos (pelo id do rastreador) vistos em cada zona durante a janela.
